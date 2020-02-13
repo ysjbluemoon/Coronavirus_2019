@@ -1,0 +1,84 @@
+---
+title: "Scraping"
+author: "Sijia Yue"
+date: "2/13/2020"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rvest)
+library(tidyverse)
+library(jsonlite)
+library(lubridate)
+library(plotly)
+
+```
+## Web Scraping data from Tencent News
+```{r}
+fromJSON("https://view.inews.qq.com/g2/getOnsInfo?name=disease_h5&=1581615429898") %>% 
+  .$data %>% 
+  writeLines(file.path('real_json'))
+
+cov_data = fromJSON(file.path('real_json')) 
+china_total = cov_data$chinaTotal %>% as_tibble()
+china_add = cov_data$chinaAdd %>% as_tibble()
+day_list = cov_data$chinaDayList 
+day_add_list = cov_data$chinaDayAddList 
+cov_data$areaTree %>% select(-children) 
+```
+
+Add summary for every day
+```{r}
+daily_summary = paste0("Due ",date(cov_data$lastUpdateTime),", confirmed: ",china_total$confirm," suspected: ",china_total$suspect)
+
+```
+
+## Plot the daily total count of Codiv-19 in China 
+```{r}
+total_daily_ggplot = 
+  day_list %>% 
+  mutate(date = ymd(paste0("2020.",date))) %>% 
+  select(date,confirm,dead, heal, suspect) %>% 
+  gather(key='type',value = 'count',confirm:suspect) %>% 
+  ggplot(aes(x = date, y = count,color =type))+
+  geom_line()+
+  geom_point()+
+  theme_classic()+
+  labs(
+    title = "Total Count of NCODIV-19",
+    subtitle = daily_summary
+  )
+
+ggplotly(total_daily_ggplot)
+```
+
+## Plot daily added count of Codiv-19 in China
+```{r}
+add_daily_ggplot = 
+  day_add_list %>% 
+  mutate(date = ymd(paste0("2020.",date))) %>% 
+  select(date,confirm,dead, heal, suspect) %>% 
+  gather(key='type',value = 'count',confirm:suspect) %>% 
+  ggplot(aes(x = date, y = count,color =type))+
+  geom_line()+
+  geom_point()+
+  theme_classic()+
+  labs(
+    title = "Total Count of NCODIV-19",
+    subtitle = daily_summary
+  )
+
+ggplotly(add_daily_ggplot)
+```
+
+```{r}
+a = cov_data$areaTree %>% pull(children)
+province_names = a[1][[1]]$name  
+procinve_data =  a[1][[1]]$total  
+join_var <- names(procinve_data)[1] #change index here based on data2
+names(join_var) <- names(province_names)[2] #change index here based on data1
+
+rownames(procinve_data)=province_names
+```
+

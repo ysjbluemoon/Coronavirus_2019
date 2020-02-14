@@ -2,7 +2,7 @@
 title: "Scraping"
 author: "Sijia Yue"
 date: "2/13/2020"
-output: github_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -13,8 +13,8 @@ library(jsonlite)
 library(lubridate)
 library(plotly)
 library(sf)
-#library(hrbrthemes)
 library(ggplot2)
+library(worldtilegrid)
 #theme_set(theme_ipsum(base_family = 'CascadiaCode-Regular'))
 ```
 ## Web Scraping data from Tencent News
@@ -28,13 +28,13 @@ china_total = cov_data$chinaTotal %>% as_tibble()
 china_add = cov_data$chinaAdd %>% as_tibble()
 day_list = cov_data$chinaDayList 
 day_add_list = cov_data$chinaDayAddList 
-cov_data$areaTree %>% select(-children) 
+date(cov_data$lastUpdateTime)
 ```
 
 Add summary for every day
 ```{r}
 daily_summary = paste0("Due ",date(cov_data$lastUpdateTime),", confirmed: ",china_total$confirm," suspected: ",china_total$suspect)
-
+daily_summary
 ```
 
 ## Plot the daily total count of Codiv-19 in China 
@@ -50,7 +50,7 @@ total_daily_ggplot =
   theme_classic()+
   labs(
     title = "Total Count of NCODIV-19",
-    subtitle = daily_summary
+    caption = daily_summary
   )
 
 ggplotly(total_daily_ggplot)
@@ -92,10 +92,12 @@ add_province = function(df){
 
 province_daily_count = add_province(province_data) 
 province_daily_count$name=fct_reorder(province_daily_count$name,province_daily_count$confirm)
- 
+
+
 ggplot(province_daily_count, aes(x=name, y=confirm)) +
   geom_col(fill='steelblue')+coord_flip()+
-  geom_text(aes(y=confirm,label=confirm,hjust=0))
+  geom_text(aes(y=confirm,label=confirm,hjust=0))+
+  theme_classic()
   
 ```
 
@@ -107,7 +109,18 @@ mapdata = read_sf("chinamap/中国省界.shp") %>%
 
 prov_map_data = inner_join(mapdata,province_daily_count,by='name')
 
-ggplot(prov_map_data) +
-  geom_sf()
+prov_daily_map = 
+  ggplot(prov_map_data) +
+  geom_sf(aes(fill = log10(confirm)),alpha =.8) +
+  theme_bw() +
+  worldtilegrid::theme_enhance_wtg()+
+  viridis::scale_fill_viridis()+
+  labs(
+    title = "Data map of NCodiv-19 confirmed people in China",
+    subtitle = daily_summary
+  )+
+  theme(axis.ticks = element_blank(),rect = element_blank())
+ 
+ggplotly(prov_daily_map) 
 ```
 

@@ -12,7 +12,10 @@ library(tidyverse)
 library(jsonlite)
 library(lubridate)
 library(plotly)
-
+library(sf)
+#library(hrbrthemes)
+library(ggplot2)
+#theme_set(theme_ipsum(base_family = 'CascadiaCode-Regular'))
 ```
 ## Web Scraping data from Tencent News
 ```{r}
@@ -72,13 +75,39 @@ add_daily_ggplot =
 ggplotly(add_daily_ggplot)
 ```
 
+## Get the daily cumulative count in each province
 ```{r}
 a = cov_data$areaTree %>% pull(children)
 province_names = a[1][[1]]$name  
-procinve_data =  a[1][[1]]$total  
-join_var <- names(procinve_data)[1] #change index here based on data2
-names(join_var) <- names(province_names)[2] #change index here based on data1
+province_data =  a[1][[1]]$total  
 
-rownames(procinve_data)=province_names
+
+add_province = function(df){
+  rownames(df) = province_names
+  df = 
+    df %>% 
+    rownames_to_column('name')
+  return(df %>% as_tibble())
+}
+
+province_daily_count = add_province(province_data) 
+province_daily_count$name=fct_reorder(province_daily_count$name,province_daily_count$confirm)
+ 
+ggplot(province_daily_count, aes(x=name, y=confirm)) +
+  geom_col(fill='steelblue')+coord_flip()+
+  geom_text(aes(y=confirm,label=confirm,hjust=0))
+  
+```
+
+## Plot the count map in every province of China
+
+```{r}
+mapdata = read_sf("chinamap/中国省界.shp") %>% 
+  janitor::clean_names() 
+
+prov_map_data = inner_join(mapdata,province_daily_count,by='name')
+
+ggplot(prov_map_data) +
+  geom_sf()
 ```
 
